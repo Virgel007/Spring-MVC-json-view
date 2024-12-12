@@ -1,6 +1,9 @@
 package com.example.demo.web.controller;
 
+import com.example.demo.exceptions.ValidationException;
+import com.example.demo.model.Order;
 import com.example.demo.model.User;
+import com.example.demo.service.impl.ServiceOrder;
 import com.example.demo.service.impl.ServiceUser;
 import com.example.demo.web.utils.MyData;
 import com.example.demo.web.utils.Views;
@@ -8,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -17,14 +21,48 @@ import java.util.regex.Pattern;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1")
-public class UserController {
-
+@Validated
+public class ApiController {
     private final ServiceUser serviceUser;
+    private final ServiceOrder serviceOrder;
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$");
 
-    private void validateEmail(String email) {
-        if (!EMAIL_PATTERN.matcher(email).matches()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid email format");
+
+    @PostMapping("/order/create")
+    public ResponseEntity<Order> create(@RequestBody Order order) {
+        try {
+            serviceOrder.create(order);
+            return ResponseEntity.ok(order);
+        } catch (ValidationException e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @DeleteMapping("/order/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        try {
+            serviceOrder.delete(id);
+            return ResponseEntity.noContent().build();
+        } catch (ValidationException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @GetMapping("/order/user/{userId}")
+    public ResponseEntity<Order> getByUser(@PathVariable Long userId) {
+        try {
+            return ResponseEntity.ok(serviceOrder.getById(userId));
+        } catch (ValidationException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @GetMapping("/order/all")
+    public ResponseEntity<List<Order>> getAll() {
+        try {
+            return ResponseEntity.ok(serviceOrder.getAll());
+        } catch (ValidationException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
@@ -95,6 +133,12 @@ public class UserController {
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error deleting user", e);
+        }
+    }
+
+    private void validateEmail(String email) {
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid email format");
         }
     }
 }
